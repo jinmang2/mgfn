@@ -1,9 +1,6 @@
 import torch
 from torch import nn, einsum
 from utils.utils import FeedForward, LayerNorm, GLANCE, FOCUS
-import option
-
-args = option.parse_args()
 
 
 def exists(val):
@@ -44,7 +41,7 @@ def MSNSD(features, scores, bs, batch_size, drop_out, ncrops, k):
         abnormal_scores = normal_scores
         abnormal_features = normal_features
 
-    select_idx = torch.ones_like(nfea_magnitudes).cuda()
+    select_idx = torch.ones_like(nfea_magnitudes).to(nfea_magnitudes.device)
     select_idx = drop_out(select_idx)
 
     afea_magnitudes_drop = afea_magnitudes * select_idx
@@ -64,7 +61,7 @@ def MSNSD(features, scores, bs, batch_size, drop_out, ncrops, k):
     idx_abn_score = idx_abn.unsqueeze(2).expand([-1, -1, abnormal_scores.shape[2]])  #
     score_abnormal = torch.mean(torch.gather(abnormal_scores, 1, idx_abn_score), dim=1)
 
-    select_idx_normal = torch.ones_like(nfea_magnitudes).cuda()
+    select_idx_normal = torch.ones_like(nfea_magnitudes).to(nfea_magnitudes.device)
     select_idx_normal = drop_out(select_idx_normal)
     nfea_magnitudes_drop = nfea_magnitudes * select_idx_normal
     idx_normal = torch.topk(nfea_magnitudes_drop, k, dim=1)[1]
@@ -144,17 +141,17 @@ class Backbone(nn.Module):
 class mgfn(nn.Module):
     def __init__(
         self,
-        *,
-        classes=0,
         dims=(64, 128, 1024),
-        depths=(args.depths1, args.depths2, args.depths3),
-        mgfn_types=(args.mgfn_type1, args.mgfn_type2, args.mgfn_type3),
-        lokernel=5,
+        depths=(3, 3, 2),
+        mgfn_types=("gb", "fb", "fb"),
         channels=2048,
         ff_repe=4,
         dim_head=64,
         dropout=0.0,
-        attention_dropout=0.0
+        attention_dropout=0.0,
+        batch_size: int = 16,
+        dropout_rate: float = 0.7,
+        mag_ratio: float = 0.1,
     ):
         super().__init__()
         init_dim, *_, last_dim = dims
@@ -165,6 +162,7 @@ class mgfn(nn.Module):
         mgfn_types = tuple(map(lambda t: t.lower(), mgfn_types))
 
         self.stages = nn.ModuleList([])
+        self.mag_ratio = mag_ratio
 
         for ind, (depth, mgfn_types) in enumerate(zip(depths, mgfn_types)):
             is_last = ind == len(depths) - 1
@@ -194,10 +192,10 @@ class mgfn(nn.Module):
             )
 
         self.to_logits = nn.Sequential(nn.LayerNorm(last_dim))
-        self.batch_size = args.batch_size
+        self.batch_size = batch_size
         self.fc = nn.Linear(last_dim, 1)
         self.sigmoid = nn.Sigmoid()
-        self.drop_out = nn.Dropout(args.dropout_rate)
+        self.drop_out = nn.Dropout(dropout_rate)
 
         self.to_mag = nn.Conv1d(1, init_dim, kernel_size=3, stride=1, padding=1)
 
@@ -209,7 +207,7 @@ class mgfn(nn.Module):
         x_m = x[:, 2048:, :]
         x_f = self.to_tokens(x_f)
         x_m = self.to_mag(x_m)
-        x_f = x_f + args.mag_ratio * x_m
+        x_f = x_f + self.mag_ratio * x_m
 
         for backbone, conv in self.stages:
             x_f = backbone(x_f)

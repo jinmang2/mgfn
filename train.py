@@ -1,10 +1,6 @@
 import torch
 import torch.nn.functional as F
 
-torch.set_default_tensor_type("torch.cuda.FloatTensor")
-import option
-
-args = option.parse_args()
 from torch import nn
 from tqdm import tqdm
 
@@ -72,7 +68,7 @@ class mgfn_loss(torch.nn.Module):
         score_normal = score_normal
         score = torch.cat((score_normal, score_abnormal), 0)
         score = score.squeeze()
-        label = label.cuda()
+        label = label.to(score.device)
         seperate = len(abn_feamagnitude) / 2
 
         loss_cls = self.criterion(score, label)

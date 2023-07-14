@@ -1,13 +1,11 @@
 from torch.utils.data import DataLoader
-import option
 import matplotlib.pyplot as plt
 import torch
 from sklearn.metrics import auc, roc_curve, precision_recall_curve
 from tqdm import tqdm
+import numpy as np
 
-args = option.parse_args()
-from config import *
-from models.mgfn import mgfn as Model
+from models.mgfn import mgfn
 from datasets.dataset import Dataset
 
 
@@ -31,9 +29,9 @@ def test(dataloader, model, args, device):
         gt = np.load(args.gt)
         pred = list(pred.cpu().detach().numpy())
         pred = np.repeat(np.array(pred), 16)
-        fpr, tpr, threshold = roc_curve(list(gt), pred)
+        fpr, tpr, _ = roc_curve(list(gt), pred)
         rec_auc = auc(fpr, tpr)
-        precision, recall, th = precision_recall_curve(list(gt), pred)
+        precision, recall, _ = precision_recall_curve(list(gt), pred)
         pr_auc = auc(recall, precision)
         print("pr_auc : " + str(pr_auc))
         print("rec_auc : " + str(rec_auc))
@@ -41,19 +39,18 @@ def test(dataloader, model, args, device):
 
 
 if __name__ == "__main__":
-    args = option.parse_args()
-    config = Config(args)
-    device = torch.device("cuda")
-    model = Model()
+    model = mgfn()
     test_loader = DataLoader(
-        Dataset(args, test_mode=True),
+        Dataset(test_mode=True),
         batch_size=1,
         shuffle=False,
         num_workers=0,
         pin_memory=False,
     )
-    model = model.to(device)
+    if torch.cuda.is_available():
+        model = model.cuda()
+    device = next(model.parameters()).device
     model_dict = model.load_state_dict(
         {k.replace("module.", ""): v for k, v in torch.load("mgfn_ucf.pkl").items()}
     )
-    auc = test(test_loader, model, args, device)
+    auc = test(test_loader, model, device)
