@@ -5,8 +5,8 @@ from sklearn.metrics import auc, roc_curve, precision_recall_curve
 from tqdm import tqdm
 import numpy as np
 
-from models.mgfn import mgfn
-from datasets.dataset import Dataset
+from mgfn import mgfn
+from dataset import Dataset
 
 
 def test(dataloader, model, args, device):

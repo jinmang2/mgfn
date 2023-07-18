@@ -2,11 +2,11 @@ import os
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import torch
-from utils.utils import save_best_record
+from utils import save_best_record
 
 from tqdm import tqdm
-from models.mgfn import mgfn
-from datasets.dataset import Dataset
+from mgfn import mgfn
+from dataset import Dataset
 
 from train import train
 from test import test

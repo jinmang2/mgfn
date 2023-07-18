@@ -1,7 +1,7 @@
 import os
 import torch.utils.data as data
 import numpy as np
-from utils.utils import process_feat
+from utils import process_feat
 import torch
 
 
