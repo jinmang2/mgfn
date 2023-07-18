@@ -1,3 +1,4 @@
+import os
 import torch.utils.data as data
 import numpy as np
 from utils.utils import process_feat
@@ -12,7 +13,9 @@ class Dataset(data.Dataset):
         transform=None,
         test_mode=False,
         seg_length: int = 32,
+        root: str = "",
     ):
+        self.root = root
         self.is_normal = is_normal
         self.rgb_list_file = rgb_list_file
         self.tranform = transform
@@ -29,12 +32,15 @@ class Dataset(data.Dataset):
                 self.list = self.list[810:]  # ucf 810; sht63; xd 9525
             else:
                 self.list = self.list[:810]  # ucf 810; sht 63; 9525
+    
+    def _get_filename(self, index):
+        return os.path.join(self.root, self.list[index])
 
     def __getitem__(self, index):
         label = self.get_label(index)  # get video level label 0/1
-        features = np.load(self.list[index].strip("\n"), allow_pickle=True)
+        features = np.load(self._get_filename(index).strip("\n"), allow_pickle=True)
         features = np.array(features, dtype=np.float32)
-        name = self.list[index].split("/")[-1].strip("\n")[:-4]
+        name = self._get_filename(index).split("/")[-1].strip("\n")[:-4]
         if self.tranform is not None:
             features = self.tranform(features)
         if self.test_mode:
