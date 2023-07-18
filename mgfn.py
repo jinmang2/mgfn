@@ -17,6 +17,7 @@ def attention(q, k, v):
 def MSNSD(features, scores, bs, batch_size, drop_out, ncrops, k):
     # magnitude selection and score prediction
     features = features  # (B*10crop,32,1024)
+    device = features.device
     bc, t, f = features.size()
 
     scores = scores.view(bs, ncrops, -1).mean(1)  # (B,32)
@@ -41,7 +42,7 @@ def MSNSD(features, scores, bs, batch_size, drop_out, ncrops, k):
         abnormal_scores = normal_scores
         abnormal_features = normal_features
 
-    select_idx = torch.ones_like(nfea_magnitudes).to(nfea_magnitudes.device)
+    select_idx = torch.ones_like(nfea_magnitudes).to(device)
     select_idx = drop_out(select_idx)
 
     afea_magnitudes_drop = afea_magnitudes * select_idx
@@ -51,7 +52,7 @@ def MSNSD(features, scores, bs, batch_size, drop_out, ncrops, k):
     abnormal_features = abnormal_features.view(n_size, ncrops, t, f)
     abnormal_features = abnormal_features.permute(1, 0, 2, 3)
 
-    total_select_abn_feature = torch.zeros(0)
+    total_select_abn_feature = torch.zeros(0).to(device)
     for abnormal_feature in abnormal_features:
         feat_select_abn = torch.gather(abnormal_feature, 1, idx_abn_feat)
         total_select_abn_feature = torch.cat(
@@ -61,7 +62,7 @@ def MSNSD(features, scores, bs, batch_size, drop_out, ncrops, k):
     idx_abn_score = idx_abn.unsqueeze(2).expand([-1, -1, abnormal_scores.shape[2]])  #
     score_abnormal = torch.mean(torch.gather(abnormal_scores, 1, idx_abn_score), dim=1)
 
-    select_idx_normal = torch.ones_like(nfea_magnitudes).to(nfea_magnitudes.device)
+    select_idx_normal = torch.ones_like(nfea_magnitudes).to(device)
     select_idx_normal = drop_out(select_idx_normal)
     nfea_magnitudes_drop = nfea_magnitudes * select_idx_normal
     idx_normal = torch.topk(nfea_magnitudes_drop, k, dim=1)[1]
@@ -70,7 +71,7 @@ def MSNSD(features, scores, bs, batch_size, drop_out, ncrops, k):
     normal_features = normal_features.view(n_size, ncrops, t, f)
     normal_features = normal_features.permute(1, 0, 2, 3)
 
-    total_select_nor_feature = torch.zeros(0)
+    total_select_nor_feature = torch.zeros(0).to(device)
     for nor_fea in normal_features:
         feat_select_normal = torch.gather(nor_fea, 1, idx_normal_feat)
         total_select_nor_feature = torch.cat(
